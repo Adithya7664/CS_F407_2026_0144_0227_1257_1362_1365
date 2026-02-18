@@ -1,0 +1,12 @@
+name: CS_F407_2026_0144_0227_1257_1362_1365
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - numpy
+  - pandas
+  - matplotlib
+  - scikit-learn
+  - pip
+  - pip:
+      - tqdm
