@@ -1,37 +1,37 @@
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import numpy as np
 import pandas as pd
 import random
 
-M=8
-N=10
-cell_size=0.7
-line_w=0.9
 haz_types=['L', 'V', 'B', 'W']
-colors=['black', 'red', 'grey', 'blue']
-fig, ax=plt.subplots(figsize=(M*cell_size, N*cell_size))
+TEXT_COLORS=['black', 'red', 'grey', 'blue']
 
-for x in range(N):
-    ax.plot([x, x], [0, M], color='black', linewidth=line_w)
-for y in range(M+1):
-    ax.plot([0, N], [y, y], color='black', linewidth=line_w)
+def drawG(grid, agentp, title, path):
+    M=len(grid)
+    N=len(grid[0])
+    cell_size=0.7
+    line_w=0.9
+    fig, ax=plt.subplots(figsize=(M*cell_size, N*cell_size))
 
-for row in range(M):
-    for col in range(N):
-        ind = random.randint(0, 3)
-        ax.text(
-            col + 0.5,
-            M - row - 0.5,
-            haz_types[ind],
-            ha="center",
-            va="center",
-            color=colors[ind],
-            fontsize=20
-        )
+    for X in range(N):
+        for Y in range(M):
+            cell=grid[X][Y]
+            pat=patches.Rectangle(Y, cell_size, cell_size, line_w)
+            ax.add_patch(pat)
+            ax.text(Y+0.5, M-X-0.5, cell, ha="center", va="center", fontsize=12, color=TEXT_COLORS[cell])
+    if agentp:
+        r, c=agentp
+        ax.text(c+0.5, M-r-0.5, "A", ha="center", va="center", fontsize=13, color="black", weight="bold")
+            
+            
+    ax.set_xlim(0, N)
+    ax.set_ylim(0, M)
+    ax.set_aspect('equal')
+    ax.axis('off')
+    if title:
+        plt.title(title)
         
-ax.set_xlim(0, N)
-ax.set_ylim(0, M)
-ax.set_aspect('equal')
-ax.axis('off')
-
-plt.show()
+    if path:
+        plt.savefig(path, bbox_inches='tight')
+    plt.show()
