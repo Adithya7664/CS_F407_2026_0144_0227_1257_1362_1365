@@ -4,9 +4,10 @@ import arrow
 import numpy as np
 import pandas as pd
 import random
+from config import HAZ_TYPES
+from config import TEXT_COLORS
 
-haz_types=['L', 'V', 'B', 'W']
-TEXT_COLORS=['black', 'red', 'grey', 'blue']
+haz_types=HAZ_TYPES
 
 def drawG(grid, agentp, turns, time, lives, path):
     M=len(grid)

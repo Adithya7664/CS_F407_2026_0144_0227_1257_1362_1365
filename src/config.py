@@ -58,8 +58,13 @@ FPS = 2
 # ---------- COLOR MAP ----------
 
 TEXT_COLORS = {
-    'L': 'black',
-    'V': 'darkred',
-    'W': 'darkblue',
-    'B': 'black'
+    'black', 
+    'red', 
+    'grey', 
+    'blue'
+}
+
+# ---------- Hazard Types --------
+HAZ_TYPES = {
+    'L', 'V', 'B', 'W'
 }
