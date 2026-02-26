@@ -56,12 +56,6 @@ FPS = 2
 
 
 # ---------- COLOR MAP ----------
-CELL_COLORS = {
-    'L': 'white',
-    'V': '#ff6b6b',
-    'W': '#4dabf7',
-    'B': '#adb5bd'
-}
 
 TEXT_COLORS = {
     'L': 'black',
