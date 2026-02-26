@@ -5,7 +5,7 @@ import itertools
 counter = itertools.count()
 
 class State:
-    def __init__(self, row, col, lives, time, turns, parent=None, action=None):
+    def __init__(self, row, col, lives, time, turns, parent=None, action=None, heat=False, vibration=False):
         self.row = row
         self.col = col
         self.lives = lives
@@ -13,6 +13,8 @@ class State:
         self.turns = turns
         self.parent = parent
         self.action = action
+        self.heat=heat
+        self.vibration=vibration
     def cost(self):
         return self.time + self.turns
 
@@ -52,7 +54,11 @@ def search(grid):
         config.START_POS[1],
         config.INITIAL_LIVES,
         0,
-        0
+        0, 
+        None, 
+        None,
+        False, 
+        False
     )
 
     pq = []
@@ -75,7 +81,6 @@ def search(grid):
             if best_goal is None or current.score() > best_goal.score():
                 best_goal = current
             continue
-
         for next_state in expand(current, grid):
             priority = (
                 -next_state.lives,
@@ -88,10 +93,32 @@ def search(grid):
 
     return None
 
+def thermal_sensor(r, c, grid):
+    for dr, dc in config.ORTHOGONAL_MOVES:
+        nr, nc = r + dr, c + dc
+        if 0 <= nr < config.M and 0 <= nc < config.N:
+            if grid[nr][nc] == 'V':
+                return True
+    return False
+
+def seismic_sensor(r, c, grid):
+    for dr, dc in config.ORTHOGONAL_MOVES:
+        nr, nc = r + dr, c + dc
+        if 0 <= nr < config.M and 0 <= nc < config.N:
+            if grid[nr][nc] == 'W':
+                return True
+    return False
+
 def expand(curstate, grid):
     
     successors = []
-
+    heat = thermal_sensor(nr, nc, grid)
+    vibration = seismic_sensor(nr, nc, grid)
+    risk_penalty=0
+    if thermal_sensor(nr, nc, grid):
+        risk_penalty += 0.5
+    if seismic_sensor(nr, nc, grid):
+        risk_penalty += 0.5
     for dr, dc in config.ORTHOGONAL_MOVES:
 
         # ---- WALK ----
@@ -114,7 +141,9 @@ def expand(curstate, grid):
                         curstate.time + config.WALK_TIME_COST,
                         curstate.turns + config.TURN_COST,
                         parent=curstate,
-                        action='walk'
+                        action='walk', 
+                        heat=heat, 
+                        vibration=vibration
                     )
                 )
 
@@ -141,7 +170,9 @@ def expand(curstate, grid):
                         curstate.time + config.JUMP_TIME_COST,
                         curstate.turns + config.TURN_COST,
                         parent=curstate,
-                        action='jump'
+                        action='jump', 
+                        heat=heat, 
+                        vibration=vibration
                     )
                 )
 
