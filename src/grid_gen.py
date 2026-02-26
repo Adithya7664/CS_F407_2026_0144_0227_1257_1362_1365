@@ -73,15 +73,36 @@ def remove_duplicates(path):
 
 def assign_path_hazards(grid, path):
     valid_cells = path[1:-1] 
-
-    hazard_positions = random.sample(valid_cells, 4)
-    types = ['V', 'V', 'W', 'W']
-    random.shuffle(types)
+    while True:
+        hazard_positions = random.sample(valid_cells, 4)
+        types = ['V', 'V', 'W', 'W']
+        random.shuffle(types)
+        temp_assignment = dict(zip(hazard_positions, types))
+        if not has_adjacent_same_type(temp_assignment):
+            break  # valid assignment
 
     for pos, t in zip(hazard_positions, types):
         r, c = pos
         grid[r][c] = t
         
+def has_adjacent_same_type(hazard_dict):
+    
+    positions = list(hazard_dict.keys())
+
+    for i in range(len(positions)):
+        r1, c1 = positions[i]
+        t1 = hazard_dict[(r1, c1)]
+
+        for j in range(i + 1, len(positions)):
+            r2, c2 = positions[j]
+            t2 = hazard_dict[(r2, c2)]
+
+            # Check adjacency (Manhattan distance 1)
+            if abs(r1 - r2) + abs(c1 - c2) == 1:
+                if t1 == t2:
+                    return True
+
+    return False
 def fill_remaining(grid, path):
     path_set = set(path)
     for r in range(config.M):
