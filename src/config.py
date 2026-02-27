@@ -58,13 +58,19 @@ FPS = 2
 # ---------- COLOR MAP ----------
 
 TEXT_COLORS = {
-    'black', 
-    'red', 
-    'grey', 
-    'blue'
+    'L': 'black',
+    'W': 'blue',
+    'V': 'red',
+    'B': 'black'
 }
 
 # ---------- Hazard Types --------
 HAZ_TYPES = {
     'L', 'V', 'B', 'W'
+}
+
+CELL_COLORS = {'L': 'white',
+    'W': '#87CEFA',   # light blue
+    'V': '#FFB6C1',   # light red
+    'B': '#A9A9A9'    # gray
 }
