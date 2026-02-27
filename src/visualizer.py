@@ -9,7 +9,7 @@ from config import TEXT_COLORS
 
 haz_types=HAZ_TYPES
 
-def drawG(grid, agentp, turns, time, lives, path):
+def drawG(grid, agentp=None, turns=None, time=None, lives=None, path=None):
     M=len(grid)
     N=len(grid[0])
     cell_size=0.7
