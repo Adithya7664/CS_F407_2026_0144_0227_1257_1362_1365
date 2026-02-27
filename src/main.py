@@ -30,12 +30,11 @@ def main():
     printgrid(grid)
     drawG(
         grid,
-        agent_pos=None,
-        path=gpath,
-        lives=config.INITIAL_LIVES,
+        agent_p=None,
         time=0,
         turns=0,
-        save_path="ground_truth.png"
+        lives=config.INITIAL_LIVES, 
+        path=gpath
     )
     optimal_path = search(grid)
 

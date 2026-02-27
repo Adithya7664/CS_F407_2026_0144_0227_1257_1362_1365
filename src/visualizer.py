@@ -9,34 +9,58 @@ from config import TEXT_COLORS
 
 haz_types=HAZ_TYPES
 
-def drawG(grid, agentp=None, turns=None, time=None, lives=None, path=None):
-    M=len(grid)
-    N=len(grid[0])
-    cell_size=0.7
-    line_w=0.9
-    fig, ax=plt.subplots(figsize=(M*cell_size, N*cell_size))
+def drawG(grid, agent_pos=None, turns=None, time=None, lives=None, path=None):
+    
+    M = len(grid)
+    N = len(grid[0])
 
-    for X in range(N):
-        for Y in range(M):
-            cell=grid[X][Y]
-            pat=patches.Rectangle(Y, cell_size, cell_size, line_w)
-            ax.add_patch(pat)
-            ax.text(Y+0.5, M-X-0.5, cell, ha="center", va="center", fontsize=12, color=TEXT_COLORS[cell])
-    if agentp:
-        r, c=agentp
-        ax.text(c+0.5, M-r-0.5, "A", ha="center", va="center", fontsize=13, color="black", weight="bold")
-        
+    fig, ax = plt.subplots(figsize=(N, M))
+
+    for r in range(M):
+        for c in range(N):
+            cell = grid[r][c]
+
+            rect = patches.Rectangle(
+                (c, M - r - 1),
+                1, 1,
+                linewidth=1,
+                edgecolor='black',
+            )
+            ax.add_patch(rect)
+
+            ax.text(
+                c + 0.5,
+                M - r - 0.5,
+                cell,
+                ha="center",
+                va="center",
+                fontsize=12
+            )
+
+    if agent_pos:
+        r, c = agent_pos
+        ax.text(
+            c + 0.5,
+            M - r - 0.5,
+            "A",
+            ha="center",
+            va="center",
+            fontsize=13,
+            weight="bold"
+        )
+
     if path:
-        drawP(ax, path, M)  
-        
+        drawP(ax, path, M)
+
     if lives is not None:
-        score=(time+turns)/lives if lives>0 else float('inf')
-        plt.title(f"Lives: {lives} | Time: {time} | Turns: {turns} | Score: {score}")     
+        score = (time + turns) / lives if lives > 0 else float('inf')
+        plt.title(f"Lives: {lives} | Time: {time} | Turns: {turns} | Score: {score}")
+
     ax.set_xlim(0, N)
     ax.set_ylim(0, M)
     ax.set_aspect('equal')
     ax.axis('off')
-    
+
     plt.show()
     
 def drawP(ax, path, M):
