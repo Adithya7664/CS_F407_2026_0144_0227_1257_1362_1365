@@ -2,10 +2,11 @@ from config import HAZ_TYPES
 import random
 import os
 import config
-import imageio
+import imageio.v2 as imageio
 from visualizer import drawG
 from agent import search
 from grid_gen import gengrid
+import shutil
 
 def printgrid(grid):
     print("\n --- Initial Grid ---")
@@ -28,14 +29,7 @@ def main():
     print("Anchor 1: ", anchor1)
     print("Anchor 2: ", anchor2)
     printgrid(grid)
-    drawG(
-        grid,
-        agent_p=None,
-        time=0,
-        turns=0,
-        lives=config.INITIAL_LIVES, 
-        path=gpath
-    )
+    drawG(grid=grid, agent_pos=None, turns=0, time=0, lives=config.INITIAL_LIVES, path=gpath, save_path=None)
     optimal_path = search(grid)
 
     if optimal_path is None:
@@ -46,8 +40,12 @@ def main():
     for step in optimal_path:
         print(step)
         
-    if not os.path.exists(config.FRAME_SAVE_DIR):
-        os.makedirs(config.FRAME_SAVE_DIR)
+    
+    
+    if os.path.exists(config.FRAME_SAVE_DIR):
+        shutil.rmtree(config.FRAME_SAVE_DIR)
+
+    os.makedirs(config.FRAME_SAVE_DIR)
     total_time = 0
     total_turns = 0
     for i in range(len(optimal_path)):
