@@ -111,22 +111,20 @@ def seismic_sensor(r, c, grid):
 
 def expand(curstate, grid):
     
-    successors = []
-    heat = thermal_sensor(nr, nc, grid)
-    vibration = seismic_sensor(nr, nc, grid)
-    risk_penalty=0
-    if thermal_sensor(nr, nc, grid):
-        risk_penalty += 0.5
-    if seismic_sensor(nr, nc, grid):
-        risk_penalty += 0.5
+    result=[]
     for dr, dc in config.ORTHOGONAL_MOVES:
 
         # ---- WALK ----
         nr = curstate.row + dr
         nc = curstate.col + dc
-
+        heat = thermal_sensor(nr, nc, grid)
+        vibration = seismic_sensor(nr, nc, grid)
+        risk_penalty=0
+        if thermal_sensor(nr, nc, grid):
+            risk_penalty += 0.5
+        if seismic_sensor(nr, nc, grid):
+            risk_penalty += 0.5
         if valid_cell(nr, nc, grid):
-
             lives = curstate.lives
             cell = grid[nr][nc]
 
@@ -134,8 +132,7 @@ def expand(curstate, grid):
                 lives -= config.HAZARD_LIFE_COST
 
             if lives > 0:
-                successors.append(
-                    State(
+                successors=State(
                         nr, nc,
                         lives,
                         curstate.time + config.WALK_TIME_COST,
@@ -145,7 +142,7 @@ def expand(curstate, grid):
                         heat=heat, 
                         vibration=vibration
                     )
-                )
+                result.append((successors, risk_penalty))
 
         # ---- JUMP ----
         nr2 = curstate.row + 2 * dr
@@ -163,8 +160,7 @@ def expand(curstate, grid):
                 lives -= config.HAZARD_LIFE_COST
 
             if lives > 0:
-                successors.append(
-                    State(
+                successors=State(
                         nr2, nc2,
                         lives,
                         curstate.time + config.JUMP_TIME_COST,
@@ -174,6 +170,6 @@ def expand(curstate, grid):
                         heat=heat, 
                         vibration=vibration
                     )
-                )
+                result.append((successors, risk_penalty))
 
-    return successors, risk_penalty
+    return result
