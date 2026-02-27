@@ -81,10 +81,10 @@ def search(grid):
             if best_goal is None or current.score() > best_goal.score():
                 best_goal = current
             continue
-        for next_state in expand(current, grid):
+        for next_state, next_risk in expand(current, grid):
             priority = (
                 -next_state.lives,
-                next_state.cost()
+                next_state.cost()+next_risk
             )
             heapq.heappush(pq, (priority, next(counter), next_state))
 
@@ -176,4 +176,4 @@ def expand(curstate, grid):
                     )
                 )
 
-    return successors
+    return successors, risk_penalty
