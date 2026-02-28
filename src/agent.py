@@ -78,7 +78,7 @@ def search(grid):
 
         if (current.row, current.col) == config.GOAL_POS:
 
-            if best_goal is None or current.score() > best_goal.score():
+            if best_goal is None or current.score() < best_goal.score():
                 best_goal = current
             continue
         for next_state, next_risk in expand(current, grid):
