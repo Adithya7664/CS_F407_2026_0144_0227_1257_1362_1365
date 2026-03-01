@@ -7,6 +7,7 @@ from visualizer import drawG
 from agent import search
 from grid_gen import gengrid
 import shutil
+import config
 
 def printgrid(grid):
     print("\n --- Initial Grid ---")
