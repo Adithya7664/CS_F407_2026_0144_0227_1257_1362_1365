@@ -43,6 +43,7 @@ WALK_TIME_COST = 2
 JUMP_TIME_COST = 3
 TURN_COST      = 1
 HAZARD_LIFE_COST = 1
+SCAN_TURN_COST = 1
 # Note: Scanning a cell costs 0 time units but advances the turn counter by 1.
 
 
