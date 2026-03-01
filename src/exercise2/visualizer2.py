@@ -4,8 +4,8 @@ import arrow
 import numpy as np
 import pandas as pd
 import random
-from config import HAZ_TYPES
-from config import TEXT_COLORS
+from config2 import HAZ_TYPES
+from config2 import TEXT_COLORS
 from config2 import CELL_COLORS2
 from matplotlib.patches import FancyArrowPatch
 
@@ -16,7 +16,7 @@ def drawG(grid, belief_g=None, scan_info=None, agent_pos=None, turns=None, time=
     M = len(grid)
     N = len(grid[0])
 
-    fig, (ax_bel, ax_gr) = plt.subplots(1, 2, figsize=(10, 10))
+    fig, (ax_bel, ax_gr) = plt.subplots(1, 2, figsize=(16, 16))
     fig.patch.set_facecolor('white')
 
     drawGrT(ax_gr, grid, M, N)
@@ -58,16 +58,6 @@ def drawP(ax, path, M):
 
         life1 = path[i][3] if len(path[i]) > 3 else None
         life2 = path[i+1][3] if len(path[i+1]) > 3 else None
-        if path[i+1][2] == 'scan':
-            ax.text(
-            start_x,
-            start_y,
-            "S",
-            ha="center",
-            va="center",
-            fontsize=14,
-            color="orange"
-        )
 
         color = 'black'
         linestyle = '-'
@@ -79,13 +69,17 @@ def drawP(ax, path, M):
             if life2 < life1:
                 color = 'red'
                 linestyle = '--'
+                r2, c2 = path[i+1][0], path[i+1][1]
                 ax.text(
-                r2 + 0.5,
-                M - c2 - 0.5,
+                c2 + 0.5,
+                M - r2 - 0.5,
                 "X",
                 ha="center",
                 va="center",
-                color='red'
+                fontsize=12,
+                color='red', 
+                fontweight='bold', 
+                zorder=10
             )
                 
 
@@ -106,7 +100,7 @@ def drawP(ax, path, M):
                 start_y,
                 dx,
                 dy,
-                head_width=0.2,
+                head_width=0.05,
                 length_includes_head=True,
                 color=color,
                 linestyle=linestyle
@@ -142,16 +136,16 @@ def drawGrT(ax, grid, M, N):
     ax.set_ylim(0, M)
     ax.set_aspect('equal')
     ax.axis('off')
-    ax.title('Ground Truth Map')
+    ax.set_title('Ground Truth Map')
     
 def belief_color(belief):
     
     if belief["V"] > 0.4:
-        return "#d9534f"   # red
+        return "#f44444"   # red
     if belief["W"] > 0.4:
-        return "#5bc0de"   # blue
+        return "#17f6fa"   # blue
     if belief["L"] > 0.5:
-        return "#5cb85c"   # green
+        return "#7af97a"   # green
     return "#dddddd"       # gray
     
 def drawBelG(ax, bel_grid, scan_info, M, N):
@@ -174,7 +168,7 @@ def drawBelG(ax, bel_grid, scan_info, M, N):
                 f"{int(risk*100)}%",
                 ha="center",
                 va="center",
-                fontsize=12,
+                fontsize=6,
             )
             if scan_info[r][c]["scanned"]:
                 highlight = patches.Rectangle(
@@ -187,13 +181,22 @@ def drawBelG(ax, bel_grid, scan_info, M, N):
                 ax.add_patch(highlight)
                 ax.text(
                     c + 0.5,
-                    M - r - 0.2,
-                    f"T:{scan_info[r][c]['T']} S:{scan_info[r][c]['S']}",
+                    M - r - 0.15,
+                    f"T:{1 if scan_info[r][c]['T'] else 0}",
                     fontsize=6,
-                    ha="center"
+                    ha="center", 
+                    va="top"
+                )
+                ax.text(
+                    c + 0.5,
+                    M - r - 0.85,
+                    f"S:{1 if scan_info[r][c]['S'] else 0}",
+                    fontsize=6,
+                    ha="center", 
+                    va="bottom"
                 )
     ax.set_xlim(0, N)
     ax.set_ylim(0, M)
     ax.set_aspect('equal')
     ax.axis('off')
-    ax.title('Belief Map(AGent)')
+    ax.set_title('Belief Map(AGent)')
