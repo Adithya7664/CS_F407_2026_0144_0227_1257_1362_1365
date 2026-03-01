@@ -58,6 +58,16 @@ def drawP(ax, path, M):
 
         life1 = path[i][3] if len(path[i]) > 3 else None
         life2 = path[i+1][3] if len(path[i+1]) > 3 else None
+        if path[i+1][2] == 'scan':
+            ax.text(
+            start_x,
+            start_y,
+            "S",
+            ha="center",
+            va="center",
+            fontsize=14,
+            color="orange"
+        )
 
         color = 'black'
         linestyle = '-'
