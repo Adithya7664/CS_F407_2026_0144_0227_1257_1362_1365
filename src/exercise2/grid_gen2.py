@@ -1,18 +1,18 @@
 import random
-from config import HAZ_TYPES
-import config
+from config2 import HAZ_TYPES
+import config2
 
 def gengrid():
-    random.seed(config.RANDOM_SEED)
-    M, N = config.M, config.N
+    random.seed(config2.RANDOM_SEED)
+    M, N = config2.M, config2.N
     grid = [['L' for _ in range(N)] for _ in range(M)]
     
     anchor1, anchor2 = select_anchors(M, N)
     path = []
     
-    path += random_path(config.START_POS, anchor1)
+    path += random_path(config2.START_POS, anchor1)
     path += random_path(anchor1, anchor2)[1:]
-    path += random_path(anchor2, config.GOAL_POS)[1:]
+    path += random_path(anchor2, config2.GOAL_POS)[1:]
     path = remove_duplicates(path)
     
     assign_path_hazards(grid, path)
@@ -29,9 +29,9 @@ def select_anchors(M, N):
 
         if a1 == a2:
             continue
-        if a1 == config.START_POS or a1 == config.GOAL_POS:
+        if a1 == config2.START_POS or a1 == config2.GOAL_POS:
             continue
-        if a2 == config.START_POS or a2 == config.GOAL_POS:
+        if a2 == config2.START_POS or a2 == config2.GOAL_POS:
             continue
 
         if abs(a1[0]-a2[0]) + abs(a1[1]-a2[1]) == 1:
@@ -105,15 +105,15 @@ def has_adjacent_same_type(hazard_dict):
 
 def fill_remaining(grid, path):
     path_set = set(path)
-    for r in range(config.M):
-        for c in range(config.N):
+    for r in range(config2.M):
+        for c in range(config2.N):
             if (r, c) in path_set:
                 continue
 
             p = random.random()
-            if p < config.NON_PATH_BRICK_RATIO:
+            if p < config2.NON_PATH_BRICK_RATIO:
                 grid[r][c] = 'B'
-            elif p < config.NON_PATH_BRICK_RATIO + config.NON_PATH_LAND_RATIO:
+            elif p < config2.NON_PATH_BRICK_RATIO + config2.NON_PATH_LAND_RATIO:
                 grid[r][c] = 'L'
             else:
                 grid[r][c] = random.choice(['V', 'W'])
@@ -135,3 +135,5 @@ def scan_infor(M, N):
         for c in range(N):
             row.append({'count': 0, 'T': None, 'S' : None, 'scanned' : False})
         scan.append(row)
+        
+    return scan
