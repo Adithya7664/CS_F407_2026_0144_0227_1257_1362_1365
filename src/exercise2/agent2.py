@@ -36,7 +36,7 @@ def search(current):
 
     pq = []
     heapq.heappush(pq, ((0, 0), next(counter), start))
-    visited=dict()
+    visited=set()
     best_goal = None
 
     while pq:
@@ -136,6 +136,8 @@ def updatebelf(prior, T, S):
         posterior[cell_type]=likelihood*pprior
         total+=posterior[cell_type]
     for k in posterior:
+        if total == 0:
+            return prior
         posterior[k]/=total
         
     return posterior
@@ -169,7 +171,7 @@ def runagent(grid):
 
         belief = belief_grid[r][c]
         risk = belief["V"] + belief["W"]
-        if risk > thres and scan_infor[r][c]["count"] < scans:
+        if 0.2< risk < 0.7 and scan_infor[r][c]["count"] < scans:
             T = Tsim(grid, r, c)
             S = Ssim(grid, r, c)
 
@@ -177,6 +179,8 @@ def runagent(grid):
             scan_infor[r][c]["count"] += 1
             scan_infor[r][c]["T"] = T
             scan_infor[r][c]["S"] = S
+            curS=State(curS.row, curS.col, curS.lives, curS.time, curS.turns+config2.SCAN_TURN_COST, None, 'scan')
+            fullpath.append((curS.row, curS.col, 'scan', curS.lives))
             continue
         if scan_infor[r][c]["count"] >= scans:
             belief_grid[r][c] = {"L":0, "V":0, "W":0, "B":1}
@@ -191,8 +195,8 @@ def runagent(grid):
             print("Agent died.")
             return fullpath
         collapse(r, c, true_cell)
-        current=State(r, c, new_lives, curS.time+(config.WALK_TIME_COST if abs(r-fullpath[-1][0])==2 or abs(r-fullpath[-1][1])==2 else config.JUMP_TIME_COST), curS.turns+config.TURN_COST)
-        fullpath.append((r, c, nextS.action, current.lives))
+        curS=State(r, c, new_lives, curS.time+(config.WALK_TIME_COST if abs(r-fullpath[-1][0])==2 or abs(r-fullpath[-1][1])==2 else config.JUMP_TIME_COST), curS.turns+config.TURN_COST)
+        fullpath.append((r, c, nextS.action, curS.lives))
         
     print("Goal Reached")
     return fullpath
