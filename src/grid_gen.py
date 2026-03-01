@@ -79,7 +79,7 @@ def assign_path_hazards(grid, path):
         random.shuffle(types)
         temp_assignment = dict(zip(hazard_positions, types))
         if not has_adjacent_same_type(temp_assignment):
-            break  # valid assignment
+            break 
 
     for pos, t in zip(hazard_positions, types):
         r, c = pos
@@ -97,7 +97,6 @@ def has_adjacent_same_type(hazard_dict):
             r2, c2 = positions[j]
             t2 = hazard_dict[(r2, c2)]
 
-            # Check adjacency (Manhattan distance 1)
             if abs(r1 - r2) + abs(c1 - c2) == 1:
                 if t1 == t2:
                     return True
@@ -117,3 +116,4 @@ def fill_remaining(grid, path):
                 grid[r][c] = 'L'
             else:
                 grid[r][c] = random.choice(['V', 'W'])
+                
