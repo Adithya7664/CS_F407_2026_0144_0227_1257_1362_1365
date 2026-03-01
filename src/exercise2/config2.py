@@ -26,10 +26,10 @@ P_WALL = (1 - P_VOLCANO_BASE) * (1 - P_WATER_BASE)   # 0.36
 # Conditional Probability Table (CPT) 
 # Format: 'Terrain_Type': (P(Thermal=True | Terrain), P(Seismic=True | Terrain))
 CPT = {
-    'V': (0.85, 0.60),  # LAVA / VOLCANO
-    'W': (0.01, 0.85),  # WATER
-    'L': (0.10, 0.05),  # SAFE / LAND
-    'B': (0.05, 0.01)   # WALL / BRICK
+    "V": {"T": 0.85, "S": 0.60},
+    "W": {"T": 0.01, "S": 0.85},
+    "L": {"T": 0.10, "S": 0.05},
+    "B": {"T": 0.05, "S": 0.01}
 }
 
 
@@ -63,7 +63,7 @@ ORTHOGONAL_MOVES = [
 
 # ---------- VISUAL SETTINGS ----------
 CELL_SIZE = 1
-FRAME_SAVE_DIR = "frames/"
+FRAME_SAVE_DIR = "frames2/"
 GIF_NAME = "simulation_ex2.gif"
 FPS = 2
 
@@ -76,7 +76,7 @@ THRESHOLD_LAND = 0.5     # If P(Land) > 0.5 -> Green
 BELIEF_COLORS = {
     'V': 'red',             # Volcano high probability
     'W': '#3498db',         # Water high probability
-    'L': '#2ecc71',         # Land high probability
+    'L': "#27ee41",         # Land high probability
     'UNKNOWN': 'lightgrey', # Below thresholds 
     'WALL': 'grey',         # Wall
     'SCAN_BORDER': 'yellow' # Scanned cells border 
@@ -94,8 +94,15 @@ HAZ_TYPES = {
     'L', 'V', 'B', 'W'
 }
 
-CELL_COLORS2 = {'L': 'green',
+CELL_COLORS2 = {'L': "#6bf77d",
     'W': '#87CEF5',   # light blue
     'V': '#FFB6C1',   # light red
     'B': '#A9A9A9'    # gray
 }
+
+NON_PATH_HAZARD_RATIO = 0.50
+NON_PATH_LAND_RATIO   = 0.40
+NON_PATH_BRICK_RATIO  = 0.10
+
+PATH_VOLCANO_COUNT = 2
+PATH_WATER_COUNT   = 2
