@@ -1,9 +1,7 @@
 import random
-import config
+import config2
 import heapq
 import itertools
-from grid_gen2 import belief_grid
-from grid_gen2 import scan_infor
 import config2
 counter = itertools.count()
 
@@ -26,17 +24,17 @@ class State:
         return self.cost() / self.lives
     
 def heuristic(r, c):
-    goal_r, goal_c = config.GOAL_POS
+    goal_r, goal_c = config2.GOAL_POS
     manhattan = abs(goal_r - r) + abs(goal_c - c)
-    return manhattan * (config.WALK_TIME_COST + config.TURN_COST)
+    return manhattan * (config2.WALK_TIME_COST + config2.TURN_COST)
 
-def search(current):
-    M, N=config.M, config.N
+def search(current, belief_grid):
+    M, N=config2.M, config2.N
     start = current
 
     pq = []
     heapq.heappush(pq, ((0, 0), next(counter), start))
-    visited=set()
+    visited=dict()
     best_goal = None
 
     while pq:
@@ -49,11 +47,11 @@ def search(current):
             continue
         visited[key] = True
 
-        if (current.row, current.col) == config.GOAL_POS:
+        if (current.row, current.col) == config2.GOAL_POS:
             while current.parent and current.parent.parent:
                 current=current.parent
             return current
-        for next_state, next_risk in expand(current):
+        for next_state, next_risk in expand(current, belief_grid):
             priority = (
                 -next_state.lives,
                 next_state.cost()+next_risk
@@ -65,32 +63,32 @@ def search(current):
 
     return None
 
-def expand(curstate):
+def expand(curstate, belief_grid):
     
     result=[]
-    for dr, dc in config.ORTHOGONAL_MOVES:
+    for dr, dc in config2.ORTHOGONAL_MOVES:
 
         # ---- WALK ----
         nr = curstate.row + dr
         nc = curstate.col + dc
-        if not (0 <= nr < config.M and 0 <= nc < config.N):
+        if not (0 <= nr < config2.M and 0 <= nc < config2.N):
             continue
         belf=belief_grid[nr][nc]
         if belf["B"]>0.8:
             continue
         risk_penalty=belf["V"]+belf["W"]
-        expected_liveloss=risk_penalty*config.HAZARD_LIFE_COST
+        expected_liveloss=risk_penalty*config2.HAZARD_LIFE_COST
         
         lives = curstate.lives
 
-        newlives=lives-expected_liveloss
+        newlives=lives
 
         if newlives > 0:
             successors=State(
                     nr, nc,
                     newlives,
-                    curstate.time + config.WALK_TIME_COST,
-                    curstate.turns + config.TURN_COST,
+                    curstate.time + config2.WALK_TIME_COST,
+                    curstate.turns + config2.TURN_COST,
                     parent=curstate,
                     action='walk'
                 )
@@ -99,25 +97,25 @@ def expand(curstate):
         # ---- JUMP ----
         nr2 = curstate.row + 2 * dr
         nc2 = curstate.col + 2 * dc
-        if not (0 <= nr2 < config.M and 0 <= nc2 < config.N):
+        if not (0 <= nr2 < config2.M and 0 <= nc2 < config2.N):
             continue
         
         belf=belief_grid[nr2][nc2]
         if belf["B"]>0.8:
             continue
         risk_penalty=belf["V"]+belf["W"]
-        expected_liveloss=risk_penalty*config.HAZARD_LIFE_COST
+        expected_liveloss=risk_penalty*config2.HAZARD_LIFE_COST
 
         lives = curstate.lives
 
-        newlivesj=lives-expected_liveloss
+        newlivesj=lives
 
         if newlivesj > 0:
             successors=State(
                     nr2, nc2,
                     newlivesj,
-                    curstate.time + config.JUMP_TIME_COST,
-                    curstate.turns + config.TURN_COST,
+                    curstate.time + config2.JUMP_TIME_COST,
+                    curstate.turns + config2.TURN_COST,
                     parent=curstate,
                     action='jump', 
                 )
@@ -152,18 +150,17 @@ def Ssim(grid, r, c):
     ps=config2.CPT[true]["S"]
     return random.random() < ps
 
-def collapse(r, c, truet):
+def collapse(r, c, truet, belief_grid):
     for x in ["L", "V", "W", "B"]:
         belief_grid[r][c][x]=0
     belief_grid[r][c][truet]=1
     
-def runagent(grid):
-    curS=State(config.START_POS[0], config.START_POS[1], config.INITIAL_LIVES, 0, 0)
+def runagent(grid, belief_grid, scan_infor):
+    curS=State(config2.START_POS[0], config2.START_POS[1], config2.INITIAL_LIVES, 0, 0)
     fullpath=[(curS.row, curS.col, None, curS.lives)]
-    thres=0.38
     scans=4
-    while (curS.row, curS.col) !=config.GOAL_POS:
-        nextS=search(curS)
+    while (curS.row, curS.col) !=config2.GOAL_POS:
+        nextS=search(curS, belief_grid)
         if nextS is None:
             print("No safe path found.")
             return fullpath
@@ -179,6 +176,7 @@ def runagent(grid):
             scan_infor[r][c]["count"] += 1
             scan_infor[r][c]["T"] = T
             scan_infor[r][c]["S"] = S
+            scan_infor[r][c]["scanned"] = True 
             curS=State(curS.row, curS.col, curS.lives, curS.time, curS.turns+config2.SCAN_TURN_COST, None, 'scan')
             fullpath.append((curS.row, curS.col, 'scan', curS.lives))
             continue
@@ -189,13 +187,13 @@ def runagent(grid):
 
         new_lives = curS.lives
         if true_cell in ["V", "W"]:
-            new_lives -= config.HAZARD_LIFE_COST
+            new_lives -= config2.HAZARD_LIFE_COST
 
         if new_lives <= 0:
             print("Agent died.")
             return fullpath
-        collapse(r, c, true_cell)
-        curS=State(r, c, new_lives, curS.time+(config.WALK_TIME_COST if abs(r-fullpath[-1][0])==2 or abs(r-fullpath[-1][1])==2 else config.JUMP_TIME_COST), curS.turns+config.TURN_COST)
+        collapse(r, c, true_cell, belief_grid)
+        curS=State(r, c, new_lives, curS.time+(config2.WALK_TIME_COST if abs(r-fullpath[-1][0])==2 or abs(r-fullpath[-1][1])==2 else config2.JUMP_TIME_COST), curS.turns+config2.TURN_COST)
         fullpath.append((r, c, nextS.action, curS.lives))
         
     print("Goal Reached")
