@@ -10,7 +10,7 @@ START_POS = (0, 0)
 GOAL_POS = (M - 1, N - 1)
 
 RANDOM_SEED = 42           # For reproducibility
-
+MATCHED_PRIOR = False
 
 # ---------- PROBABILISTIC SETTINGS (NEW FOR EXERCISE-2) ----------
 # Independent prior probabilities 
@@ -31,7 +31,7 @@ CPT = {
     "L": {"T": 0.10, "S": 0.05},
     "B": {"T": 0.05, "S": 0.01}
 }
-
+WALL_BLOCK = True
 
 # ---------- AGENT & SENSOR SETTINGS ----------
 INITIAL_LIVES = 4

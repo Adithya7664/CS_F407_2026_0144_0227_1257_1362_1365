@@ -35,7 +35,7 @@ def main():
     belfG=belief_grid(config2.M, config2.N)
     scan_I=scan_infor(config2.M, config2.N)
     drawG(grid=grid, belief_g=belfG, scan_info=scan_I, agent_pos=None, turns=0, time=0, lives=config2.INITIAL_LIVES, path=None, save_path=None)
-    executed_path=runagent(grid, belfG, scan_I)
+    executed_path, snaps = runagent(grid, belfG, scan_I)
     print("\n PATH ")
     for step in executed_path:
         print(step)
@@ -55,16 +55,14 @@ def main():
                 total_time += config2.WALK_TIME_COST
             elif action == 'jump':
                 total_time += config2.JUMP_TIME_COST
-            if action == 'scan':
-                total_turns+=config2.SCAN_TURN_COST
-
-            total_turns += config2.TURN_COST
+            total_turns += config2.SCAN_TURN_COST if action == 'scan' else config2.TURN_COST
 
         partial_path = executed_path[:i+1]
+        bel_i, scan_i = snaps[i]
         drawG(
             grid,
-            belfG, 
-            scan_I, 
+            bel_i,
+            scan_i,
             agent_pos=(r, c),
             path=partial_path,
             lives=lives,
@@ -72,9 +70,9 @@ def main():
             turns=total_turns,
             save_path=f"{config2.FRAME_SAVE_DIR}/frame2_{i}.png"
         )
-        savegif(config2.FRAME_SAVE_DIR, config2.GIF_NAME)
+    savegif(config2.FRAME_SAVE_DIR, config2.GIF_NAME)
 
-        print("\nSimulation saved as:", config2.GIF_NAME)
+    print("\nSimulation saved as:", config2.GIF_NAME)
         
 if __name__ == "__main__":
     main()

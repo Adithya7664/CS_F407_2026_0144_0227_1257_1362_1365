@@ -1,3 +1,4 @@
+import copy
 import random
 import config2
 import heapq
@@ -80,8 +81,7 @@ def expand(curstate, belief_grid):
         expected_liveloss=risk_penalty*config2.HAZARD_LIFE_COST
         
         lives = curstate.lives
-
-        newlives=lives
+        newlives=max(lives-expected_liveloss, 0.05)
 
         if newlives > 0:
             successors=State(
@@ -107,8 +107,7 @@ def expand(curstate, belief_grid):
         expected_liveloss=risk_penalty*config2.HAZARD_LIFE_COST
 
         lives = curstate.lives
-
-        newlivesj=lives
+        newlivesj=max(lives-expected_liveloss, 0.05)
 
         if newlivesj > 0:
             successors=State(
@@ -158,12 +157,13 @@ def collapse(r, c, truet, belief_grid):
 def runagent(grid, belief_grid, scan_infor):
     curS=State(config2.START_POS[0], config2.START_POS[1], config2.INITIAL_LIVES, 0, 0)
     fullpath=[(curS.row, curS.col, None, curS.lives)]
+    snaps=[(copy.deepcopy(belief_grid), copy.deepcopy(scan_infor))]
     scans=4
     while (curS.row, curS.col) !=config2.GOAL_POS:
         nextS=search(curS, belief_grid)
         if nextS is None:
             print("No safe path found.")
-            return fullpath
+            return fullpath, snaps
         r, c = nextS.row, nextS.col
 
         belief = belief_grid[r][c]
@@ -179,11 +179,19 @@ def runagent(grid, belief_grid, scan_infor):
             scan_infor[r][c]["scanned"] = True 
             curS=State(curS.row, curS.col, curS.lives, curS.time, curS.turns+config2.SCAN_TURN_COST, None, 'scan')
             fullpath.append((curS.row, curS.col, 'scan', curS.lives))
+            snaps.append((copy.deepcopy(belief_grid), copy.deepcopy(scan_infor)))
             continue
-        if scan_infor[r][c]["count"] >= scans:
+        if scan_infor[r][c]["count"] >= scans and 0.2 < risk < 0.7:
             belief_grid[r][c] = {"L":0, "V":0, "W":0, "B":1}
             continue
         true_cell = grid[r][c]
+        if config2.WALL_BLOCK and true_cell == "B":
+            collapse(r, c, "B", belief_grid)
+            curS = State(curS.row, curS.col, curS.lives, curS.time,
+                         curS.turns + config2.TURN_COST, None, 'bump')
+            fullpath.append((curS.row, curS.col, 'bump', curS.lives))
+            snaps.append((copy.deepcopy(belief_grid), copy.deepcopy(scan_infor)))
+            continue
 
         new_lives = curS.lives
         if true_cell in ["V", "W"]:
@@ -191,10 +199,12 @@ def runagent(grid, belief_grid, scan_infor):
 
         if new_lives <= 0:
             print("Agent died.")
-            return fullpath
+            return fullpath, snaps
         collapse(r, c, true_cell, belief_grid)
-        curS=State(r, c, new_lives, curS.time+(config2.WALK_TIME_COST if abs(r-fullpath[-1][0])==2 or abs(r-fullpath[-1][1])==2 else config2.JUMP_TIME_COST), curS.turns+config2.TURN_COST)
+        step_time = config2.WALK_TIME_COST if nextS.action == 'walk' else config2.JUMP_TIME_COST
+        curS = State(r, c, new_lives, curS.time + step_time, curS.turns + config2.TURN_COST)
         fullpath.append((r, c, nextS.action, curS.lives))
+        snaps.append((copy.deepcopy(belief_grid), copy.deepcopy(scan_infor)))
         
     print("Goal Reached")
-    return fullpath
+    return fullpath, snaps
