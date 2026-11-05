@@ -1,203 +1,103 @@
-# CS_F407_2026_0144_0227_1257_1362_1365
-Intelligent Agent Navigation – Deterministic & Probabilistic
-📌 Overview:
+# Grid Navigation Agent: deterministic and Bayesian
 
-This project implements an intelligent grid-based navigation system in two stages:
+An agent crosses an M x N grid from the start `(0, 0)` to the goal `(M-1, N-1)` and tries to minimise
 
--Exercise 1 – Deterministic Optimal Agent
+```
+score = (time + turns) / lives
+```
 
--Exercise 2 – Probabilistic Bayesian Agent with Noisy Sensors
+while hazards try to take its lives. The project has two stages:
 
-The agent must navigate from a start cell (0,0) to the goal (M-1,N-1) while:
+| | Exercise 1 | Exercise 2 |
+|---|---|---|
+| Agent knows the map | yes | no |
+| Method | best-first (A*-like) search | Bayesian beliefs + sensor scans + replanning |
+| Randomness | none | noisy thermal and seismic sensors |
 
-1.Minimizing score = (Time + Turns) / Lives
+**Live replays:** `docs/index.html` is a static viewer that plays back Exercise 2 runs step by step (see [Replay viewer](#replay-viewer)).
 
-2.Avoiding hazards (Volcano & Water)
+![Exercise 1](docs/img/ex1.gif)
+![Exercise 2](docs/img/ex2.gif)
 
-3.Handling movement constraints (Walk & Jump)
+## The world
 
-4.Managing limited lives.
+| Label | Meaning | Rules |
+|---|---|---|
+| L | Land | safe |
+| V | Volcano | costs 1 life |
+| W | Water | costs 1 life |
+| B | Wall | impassable: cannot be entered or jumped over |
 
-Each cell in the grid can be:
-| Label | Meaning    | Color |
-| ----- | ---------- | ----- |
-| L     | Land       | Green |
-| V     | Volcano    | Red   |
-| W     | Water      | Blue  |
-| B     | Brick Wall | Gray  |  
+Movement: **walk** = 1 cell (time 2), **jump** = 2 cells in a straight line (time 3). Every move costs 1 turn. The agent starts with 4 lives and dies at 0. All costs live in `config.py` / `config2.py`.
 
+## Exercise 1: deterministic agent
 
-**Exercise 1 – Deterministic Agent**:
-✔ Features
+The grid is fully known. The generator draws a guaranteed safe route using anchor cells, with exactly 2 volcano and 2 water cells on the ground-truth path. A best-first search over `(row, col, lives)` finds the route that keeps the most lives first, then the lowest cost. It never crosses a wall.
 
-Unique safe path generation using anchor cells
+## Exercise 2: Bayesian agent
 
-Exactly:
+The agent cannot see terrain. For each cell it keeps a belief `P(L), P(V), P(W), P(B)` and updates it from two noisy sensors:
 
-2 Volcano cells
+| Terrain | P(thermal = true) | P(seismic = true) |
+|---|---|---|
+| Volcano | 0.85 | 0.60 |
+| Water | 0.01 | 0.85 |
+| Land | 0.10 | 0.05 |
+| Wall | 0.05 | 0.01 |
 
-2 Water cells on ground-truth path
+`P(terrain | T, S)` is proportional to `P(T | terrain) x P(S | terrain) x prior`, normalised over the four terrain types. Priors are in `config2.py`. Stepping on a cell reveals it, and its belief collapses to the true type.
 
-A*-like search optimizing:
+**How it decides**
 
-Score = (Time + Turns) / Lives
-✔ Movement Types
+- **Planning.** The search runs on the current beliefs. A step's risk is `P(V) + P(W)`, charged as an expected loss of lives, so uncertain cells look partly dangerous.
+- **Scanning.** If a planned cell has `0.2 < risk < 0.7`, the agent scans it (1 turn, no time, no life lost), up to 4 times per cell. A cell that is still ambiguous afterwards is treated as blocked.
+- **Probing.** If the planned step is very likely a hazard (`risk >= 0.7`), the agent first scans up to 2 times each other cell it could move to, then replans. Set `PROBE_ALTERNATIVES = False` in `config2.py` to turn this off.
+- **Last-life guard.** On its final life it refuses steps that are likely to be fatal, widens its scan band, and detours around them. A hard turn limit (`MAX_TURNS`) stops runaway runs.
+- **Walls.** Walking into a wall, or jumping over one, costs a turn and leaves the agent where it was. Its belief for that cell becomes "wall".
 
--Walk (distance 1) → Black straight arrow
+**Reading the belief map.** A cell labelled `B 64%` means "wall is the most likely type", not "certain wall". A quiet scan (T:0, S:0) looks the same for land and walls, so most cells labelled `B` are actually land. The `haz` figure under it is the real volcano-or-water risk.
 
--Jump (distance 2) → Purple curved arrow
+**Measured results.** Over 120 to 150 generated grids the agent reaches the goal in about 95% of runs, with about 2.5 lives left on average. Numbers vary a little with the seed range, and walls being impassable makes the task harder than it was in the first version.
 
--Damage → Red dashed arrow + Red ❌  
+## Setup
 
-✔ Output
+```bash
+python -m venv .venv
+.venv\Scripts\activate          # Windows;  source .venv/bin/activate on macOS/Linux
+pip install -r requirements.txt
+```
 
--Initial grid visualization
+Or with conda: `conda env create -f environment.yml`.
 
--Optimal path
+## Run
 
--Step-by-step animation saved as GIF
+```bash
+cd src/exercise1 && python main.py      # writes frames/ and simulation.gif
+cd src/exercise2 && python main2.py     # writes frames2/ and simulation_ex2.gif
+```
 
+Both use `RANDOM_SEED` from their config file. Change it to get a different grid.
 
+## Replay viewer
 
+```bash
+cd src/exercise2
+python export_replay.py 1 30            # runs seeds 1..30 -> replays/*.json
+```
 
-**Exercise 2 – Probabilistic Bayesian Agent**:
+Copy the `replays` folder into `docs/`, then:
 
-In this version:
+```bash
+cd docs
+python -m http.server 8000              # open http://localhost:8000
+```
 
-1. Agent does NOT know true terrain
+The page has a seed picker, play/pause, step controls, a speed slider and keyboard shortcuts (space, left/right arrows). It shows the belief map next to the ground truth for every step.
 
-Uses noisy sensors:
+## Project layout
 
--Thermal (Volcano detection)
-
--Seismic (Water detection)
-
--Maintains belief over each cell
-
--Updates belief using Bayesian inference
-
-📡 *Sensor Model (CPT)*
-
-Terrain	  P(Thermal=True)	  P(Seismic=True)
-Volcano	  0.85	              0.60
-Water	    0.01	              0.85
-Land	    0.10	              0.05
-Wall	    0.05	              0.01  
-
-Bayesian Update:
-
-Posterior computed using:
-
-`P(Terrain | T, S)` ∝ P(T | Terrain) × P(S | Terrain) × Prior
-
-Normalized over all terrain types.
-
-
-
-🔍 **Scan Logic**
-
-Agent scans when:
-
-0.2 < Risk < 0.7
-
-Each scan:
-
--Costs 1 turn
-
--Does not move agent
-
--Maximum scans per cell: 4
-
--After 4 scans → cell marked BLOCKED.
-
-*Visualization (Exercise 2)*:
-
-Two synchronized panels:
-
-`Left Panel – Belief Map`
-
--Cell color based on posterior probabilities
-
--Displays risk percentage
-
--Yellow border for scanned cells
-
--Shows sensor readings: T: True/False, S: True/False
-
--Red ❌ when life lost
-
-`Right Panel – Ground Truth`
-
--True terrain coloring
-
--Same path overlay
-
--Damage markers
-
--Life/time/turns/score displayed
-
-**How to Run**:
-🔹 Exercise 1
-python main.py in excercise1 folder
-
-Outputs:
-
--Grid visualization
-
--Optimal path
-
--Animation saved as GIF
-
-🔹 Exercise 2
-python main2.py in excersize2 folder
-
-Outputs:
-
--Belief map vs Ground truth
-
--Bayesian updates
-
--Scan visualization
-
--Risk-aware navigation animation
-
-*Example results*:
-Ex1: <img width="466" height="62" alt="image" src="https://github.com/user-attachments/assets/d44a9d64-f8de-4a17-add1-7253ad389757" />
-
-Ex2: <img width="410" height="33" alt="image" src="https://github.com/user-attachments/assets/2f6913a7-36aa-4963-8cf4-01de9327e6d6" />
-
-	Key Concepts Demonstrated`:
-
--A* search with multi-objective scoring
-
--Risk-aware planning
-
--Bayesian inference
-
--Belief space planning
-
--Noisy sensor integration
-
--Probabilistic decision making
-
--Visualization engineering
-
-**Requirements**
-
--Python 3.x
-
--matplotlib
-
--numpy
-
--imageio
-
-`Conclusion`:
-
-This project demonstrates the transition from:
-
-Deterministic optimal planning
-→ Probabilistic belief-based intelligent navigation
-
-The second agent operates under uncertainty and dynamically adapts through Bayesian reasoning, successfully navigating the environment while managing risk and limited resources.
-
+```
+src/exercise1/    agent.py, grid_gen.py, visualizer.py, config.py, main.py
+src/exercise2/    agent2.py, grid_gen2.py, visualizer2.py, config2.py, main2.py, export_replay.py
+docs/             static replay viewer (index.html), replays/, img/
+```

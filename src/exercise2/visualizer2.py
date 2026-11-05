@@ -1,14 +1,11 @@
 import matplotlib.pyplot as plt
+import config2
 import matplotlib.patches as patches
-import arrow
-import numpy as np
-import pandas as pd
-import random
+from config2 import *
 from config2 import HAZ_TYPES
 from config2 import TEXT_COLORS
 from config2 import CELL_COLORS2
 from matplotlib.patches import FancyArrowPatch
-
 haz_types=HAZ_TYPES
 
 def drawG(grid, belief_g=None, scan_info=None, agent_pos=None, turns=None, time=None, lives=None, path=None, save_path=None):
@@ -16,7 +13,7 @@ def drawG(grid, belief_g=None, scan_info=None, agent_pos=None, turns=None, time=
     M = len(grid)
     N = len(grid[0])
 
-    fig, (ax_bel, ax_gr) = plt.subplots(1, 2, figsize=(16, 16))
+    fig, (ax_bel, ax_gr) = plt.subplots(1, 2, figsize=(20, 9.5))
     fig.patch.set_facecolor('white')
 
     drawGrT(ax_gr, grid, M, N)
@@ -26,25 +23,33 @@ def drawG(grid, belief_g=None, scan_info=None, agent_pos=None, turns=None, time=
         drawP(ax_bel, path, M)
         drawP(ax_gr, path, M)
 
+    if agent_pos:
+        ar, ac = agent_pos
+        for ax in (ax_bel, ax_gr):
+            ax.add_patch(patches.Circle((ac + 0.5, M - ar - 0.5), 0.22, facecolor='gold',
+                                        edgecolor='black', linewidth=1.5, zorder=20))
+            ax.text(ac + 0.5, M - ar - 0.5, "A", ha="center", va="center",
+                    fontsize=14, weight="bold", zorder=21)
+
     if lives is not None:
         score = (time + turns) / lives if lives > 0 else float('inf')
-        plt.title(
-            f"Lives: {lives} | Time: {time} | Turns: {turns} | Score: {score:.2f}",
-            fontsize=14
-        )
+        fig.suptitle(f"Lives: {lives} | Time: {time} | Turns: {turns} | Score: {score:.2f}", fontsize=18)
 
+    fig.text(0.5, 0.02, "black arrow = walk    purple curve = jump    red dashed + X = life lost    "
+                        "yellow border = scanned    gold circle = agent", ha="center", fontsize=12)
+    fig.tight_layout(rect=[0, 0.05, 1, 0.93])
     if save_path is not None:
-        plt.savefig(save_path)
+        plt.savefig(save_path, dpi=110)
         plt.close(fig)
     else:
         plt.show()
     
 def drawP(ax, path, M):
     for i in range(len(path) - 1):
-
         r1, c1 = path[i][0], path[i][1]
         r2, c2 = path[i+1][0], path[i+1][1]
-
+        if (r1, c1) == (r2, c2):      # scans and bumps don't move the agent
+            continue
         start_x = c1 + 0.5
         start_y = M - r1 - 0.5
 
@@ -76,7 +81,7 @@ def drawP(ax, path, M):
                 "X",
                 ha="center",
                 va="center",
-                fontsize=12,
+                fontsize=16,
                 color='red', 
                 fontweight='bold', 
                 zorder=10
@@ -100,7 +105,7 @@ def drawP(ax, path, M):
                 start_y,
                 dx,
                 dy,
-                head_width=0.05,
+                head_width=0.2,
                 length_includes_head=True,
                 color=color,
                 linestyle=linestyle
@@ -128,7 +133,7 @@ def drawGrT(ax, grid, M, N):
                 cell,
                 ha="center",
                 va="center",
-                fontsize=12,
+                fontsize=16,
                 color=TEXT_COLORS[cell]
             )
             
@@ -139,14 +144,15 @@ def drawGrT(ax, grid, M, N):
     ax.set_title('Ground Truth Map')
     
 def belief_color(belief):
-    
-    if belief["V"] > 0.4:
-        return "#f44444"   # red
-    if belief["W"] > 0.4:
-        return "#17f6fa"   # blue
-    if belief["L"] > 0.5:
-        return "#7af97a"   # green
-    return "#dddddd"       # gray
+    if belief["B"] > 0.5:
+        return config2.BELIEF_COLORS['WALL']
+    if belief["V"] > config2.THRESHOLD_VOLCANO:
+        return config2.BELIEF_COLORS['V']
+    if belief["W"] > config2.THRESHOLD_WATER:
+        return config2.BELIEF_COLORS['W']
+    if belief["L"] > config2.THRESHOLD_LAND:
+        return config2.BELIEF_COLORS['L']
+    return config2.BELIEF_COLORS['UNKNOWN']
     
 def drawBelG(ax, bel_grid, scan_info, M, N):
     ax.set_facecolor('white')
@@ -165,10 +171,10 @@ def drawBelG(ax, bel_grid, scan_info, M, N):
             ax.text(
                 c + 0.5,
                 M - r - 0.5,
-                f"{int(risk*100)}%",
+                f"B {round(belief['B']*100)}%\n⚠{round(risk*100)}%" if belief["B"] > 0.5 else f"{round(risk*100)}%",
                 ha="center",
                 va="center",
-                fontsize=6,
+                fontsize=14, weight="bold",
             )
             if scan_info[r][c]["scanned"]:
                 highlight = patches.Rectangle(
@@ -183,7 +189,7 @@ def drawBelG(ax, bel_grid, scan_info, M, N):
                     c + 0.5,
                     M - r - 0.15,
                     f"T:{1 if scan_info[r][c]['T'] else 0}",
-                    fontsize=6,
+                    fontsize=11,
                     ha="center", 
                     va="top"
                 )
@@ -191,7 +197,7 @@ def drawBelG(ax, bel_grid, scan_info, M, N):
                     c + 0.5,
                     M - r - 0.85,
                     f"S:{1 if scan_info[r][c]['S'] else 0}",
-                    fontsize=6,
+                    fontsize=11,
                     ha="center", 
                     va="bottom"
                 )
@@ -199,4 +205,4 @@ def drawBelG(ax, bel_grid, scan_info, M, N):
     ax.set_ylim(0, M)
     ax.set_aspect('equal')
     ax.axis('off')
-    ax.set_title('Belief Map(AGent)')
+    ax.set_title("Agent's belief map")

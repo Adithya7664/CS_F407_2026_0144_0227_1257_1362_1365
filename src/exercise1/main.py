@@ -69,9 +69,9 @@ def main():
             turns=total_turns,
             save_path=f"{config.FRAME_SAVE_DIR}/frame_{i}.png"
         )
-        savegif(config.FRAME_SAVE_DIR, config.GIF_NAME)
+    savegif(config.FRAME_SAVE_DIR, config.GIF_NAME)
 
-        print("\nSimulation saved as:", config.GIF_NAME)
+    print("\nSimulation saved as:", config.GIF_NAME)
         
 if __name__ == "__main__":
     main()

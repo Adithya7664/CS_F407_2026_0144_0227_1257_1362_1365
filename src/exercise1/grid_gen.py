@@ -63,13 +63,16 @@ def random_path(start, end):
     return path
 
 def remove_duplicates(path):
-    seen = set()
-    new_path = []
+    # loop-erasing: when the path revisits a cell, drop the loop so cells stay adjacent
+    out, idx = [], {}
     for p in path:
-        if p not in seen:
-            new_path.append(p)
-            seen.add(p)
-    return new_path
+        if p in idx:
+            del out[idx[p] + 1:]
+            idx = {q: i for i, q in enumerate(out)}
+        else:
+            idx[p] = len(out)
+            out.append(p)
+    return out
 
 def assign_path_hazards(grid, path):
     valid_cells = path[1:-1] 

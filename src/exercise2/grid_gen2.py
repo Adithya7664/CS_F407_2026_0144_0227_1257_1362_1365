@@ -64,13 +64,15 @@ def random_path(start, end):
     return path
 
 def remove_duplicates(path):
-    seen = set()
-    new_path = []
+    out, idx = [], {}
     for p in path:
-        if p not in seen:
-            new_path.append(p)
-            seen.add(p)
-    return new_path
+        if p in idx:
+            del out[idx[p] + 1:]
+            idx = {q: i for i, q in enumerate(out)}
+        else:
+            idx[p] = len(out)
+            out.append(p)
+    return out
 
 def assign_path_hazards(grid, path):
     valid_cells = path[1:-1] 
@@ -119,14 +121,11 @@ def fill_remaining(grid, path):
                 grid[r][c] = random.choice(['V', 'W'])
 
 def belief_grid(M, N):
-    belief=[]
-    for r in range(M):
-        row=[]
-        for c in range(N):
-            row.append({'V': 0.24, 'W': 0.24, 'L' : 0.16, 'B' : 0.36})
-        belief.append(row)
-        
-    return belief
+    prior = {'V': config2.P_LAVA, 'W': config2.P_WATER,
+             'L': config2.P_LAND, 'B': config2.P_WALL}
+    if config2.MATCHED_PRIOR:
+        prior = {'V': 0.206, 'W': 0.214, 'L': 0.506, 'B': 0.074}
+    return [[dict(prior) for _ in range(N)] for _ in range(M)]
 
 def scan_infor(M, N):
     scan=[]
