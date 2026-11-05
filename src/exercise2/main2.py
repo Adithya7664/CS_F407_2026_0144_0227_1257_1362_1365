@@ -2,9 +2,7 @@ import random
 import os
 import config2
 import imageio.v2 as imageio
-from visualizer2 import drawBelG
 from visualizer2 import drawG
-from visualizer2 import drawGrT
 from agent2 import runagent
 from grid_gen2 import gengrid
 import shutil
@@ -24,6 +22,7 @@ def savegif(frame_d, output):
     files = sorted(os.listdir(frame_d),key=lambda x: int(x.split('_')[1].split('.')[0]))
     for file in files:
         images.append(imageio.imread(os.path.join(frame_d, file)))
+    images += [images[-1]] * int(config2.FPS * 2)   # hold the last frame for ~2 seconds
     imageio.mimsave(output, images, fps=config2.FPS)
     
 def main():
@@ -34,7 +33,6 @@ def main():
     printgrid(grid)
     belfG=belief_grid(config2.M, config2.N)
     scan_I=scan_infor(config2.M, config2.N)
-    drawG(grid=grid, belief_g=belfG, scan_info=scan_I, agent_pos=None, turns=0, time=0, lives=config2.INITIAL_LIVES, path=None, save_path=None)
     executed_path, snaps = runagent(grid, belfG, scan_I)
     print("\n PATH ")
     for step in executed_path:

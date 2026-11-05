@@ -1,8 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import arrow
 import numpy as np
-import pandas as pd
 import random
 from config import HAZ_TYPES
 from config import TEXT_COLORS

@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grid Agent Replay</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1d2330;--muted:#667085;--line:#d9dde5;--accent:#2f6fed;
+--good:#1a8f4c;--bad:#c93232;}
+@media (prefers-color-scheme:dark){:root{--bg:#12151c;--card:#1b2029;--ink:#e8ebf2;--muted:#9aa3b5;--line:#2c3340;--accent:#6b9bff;
+--good:#4cc27f;--bad:#ff6b6b;}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:22px;margin:0 0 4px}
+p.sub{margin:0 0 16px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.bar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-bottom:12px}
+.stat{display:flex;flex-direction:column;min-width:64px}
+.stat b{font-size:20px;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.badge{padding:3px 10px;border-radius:99px;font-size:13px;font-weight:600;border:1px solid var(--line)}
+.badge.goal{color:var(--good)}.badge.died{color:var(--bad)}
+canvas{width:100%;display:block}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}
+button,select{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;min-width:84px}
+input[type=range]{accent-color:var(--accent)}
+#step{flex:1;min-width:160px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;color:var(--muted);font-size:13px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid #0003}
+.hint{color:var(--muted);font-size:13px;margin-top:8px}
+#err{color:var(--bad);display:none;margin:8px 0}
+</style>
+</head>
+<body>
+<main>
+  <h1>Grid Agent Replay</h1>
+  <p class="sub">A Bayesian agent crossing a grid with noisy thermal/seismic sensors. Left: what the agent believes. Right: the real map.</p>
+  <div id="err"></div>
+  <div class="card">
+    <div class="bar">
+      <label>Seed <select id="seed"></select></label>
+      <span id="outcome" class="badge"></span>
+      <div class="stat"><b id="sLives">-</b><span>Lives</span></div>
+      <div class="stat"><b id="sTime">-</b><span>Time</span></div>
+      <div class="stat"><b id="sTurns">-</b><span>Turns</span></div>
+      <div class="stat"><b id="sScore">-</b><span>Score</span></div>
+      <div class="stat"><b id="sAct">-</b><span>Action</span></div>
+      <div class="stat"><b id="sStep">-</b><span>Step</span></div>
+    </div>
+    <canvas id="cv"></canvas>
+    <div class="controls">
+      <button id="first" title="Start">&#9198;</button>
+      <button id="prev" title="Back (left arrow)">&#9664;</button>
+      <button id="play" class="primary" title="Space">Play</button>
+      <button id="next" title="Forward (right arrow)">&#9654;</button>
+      <button id="last" title="End">&#9197;</button>
+      <input id="step" type="range" min="0" max="0" value="0">
+      <label>Speed <input id="speed" type="range" min="1" max="10" value="4"></label>
+    </div>
+    <div class="hint">Space = play/pause, left/right arrows = step. Score = (time + turns) / lives, lower is better.</div>
+    <div class="legend">
+      <span><i style="background:#27ee41"></i>land</span>
+      <span><i style="background:#ff4d4d"></i>volcano</span>
+      <span><i style="background:#3498db"></i>water</span>
+      <span><i style="background:#8a8f98"></i>wall</span>
+      <span><i style="background:#d3d6dc"></i>undecided</span>
+      <span>yellow border = scanned (T/S readings shown)</span>
+      <span>black arrow = walk, purple curve = jump, red X = life lost</span>
+    </div>
+  </div>
+</main>
+<script>
+const COL = {L:"#27ee41", V:"#ff4d4d", W:"#3498db", B:"#8a8f98", U:"#d3d6dc"};
+const GT  = {L:"#6bf77d", W:"#87CEF5", V:"#FFB6C1", B:"#A9A9A9"};
+const TH  = {V:0.4, W:0.4, L:0.5};          // same thresholds as config2.py
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+const $ = id => document.getElementById(id);
+let run = null, idx = 0, timer = null;
+
+function beliefColor(b){            // b = [V, W, L, B]
+  if (b[3] > 0.5) return COL.B;
+  if (b[0] > TH.V) return COL.V;
+  if (b[1] > TH.W) return COL.W;
+  if (b[2] > TH.L) return COL.L;
+  return COL.U;
+}
+function fail(msg){ const e=$("err"); e.textContent=msg; e.style.display="block"; }
+
+async function boot(){
+  try {
+    const index = await (await fetch("replays/index.json")).json();
+    const sel = $("seed");
+    index.forEach(r => { const o=document.createElement("option"); o.value=r.seed;
+      o.textContent = "#"+r.seed+"  ("+r.outcome+")"; sel.appendChild(o); });
+    sel.onchange = () => load(sel.value);
+    await load(index[0].seed);
+  } catch(e){
+    fail("Could not load replays/index.json. Open this page through a web server (python -m http.server), not by double-clicking the file.");
+  }
+}
+async function load(seed){
+  stop();
+  run = await (await fetch("replays/seed_"+seed+".json")).json();
+  idx = 0; $("step").max = run.steps.length - 1;
+  const ob=$("outcome"); ob.textContent = run.outcome==="goal" ? "reached goal" : run.outcome;
+  ob.className = "badge " + run.outcome;
+  draw();
+}
+
+function arrow(x1,y1,x2,y2,color,w){
+  ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=w;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  const a=Math.atan2(y2-y1,x2-x1), h=w*3.2;
+  ctx.beginPath(); ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-h*Math.cos(a-0.45),y2-h*Math.sin(a-0.45));
+  ctx.lineTo(x2-h*Math.cos(a+0.45),y2-h*Math.sin(a+0.45)); ctx.closePath(); ctx.fill();
+}
+function drawPath(ox,cs,upto){
+  const P = run.steps;
+  for (let i=1;i<=upto;i++){
+    const a=P[i-1], b=P[i];
+    const x1=ox+(a.c+.5)*cs, y1=(a.r+.5)*cs, x2=ox+(b.c+.5)*cs, y2=(b.r+.5)*cs;
+    if (b.action==="walk") arrow(x1,y1,x2,y2,"#111",Math.max(2,cs*.05));
+    else if (b.action==="jump"){
+      const mx=(x1+x2)/2, my=(y1+y2)/2, dx=x2-x1, dy=y2-y1;
+      ctx.strokeStyle="#8e44ad"; ctx.lineWidth=Math.max(2,cs*.05);
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.quadraticCurveTo(mx-dy*.5,my+dx*.5,x2,y2); ctx.stroke();
+    }
+    if (b.lives < a.lives){                       // life lost: red X on that cell
+      ctx.strokeStyle="#d00"; ctx.lineWidth=Math.max(3,cs*.07);
+      const s=cs*.25; ctx.beginPath();
+      ctx.moveTo(x2-s,y2-s); ctx.lineTo(x2+s,y2+s); ctx.moveTo(x2+s,y2-s); ctx.lineTo(x2-s,y2+s); ctx.stroke();
+    }
+  }
+}
+function txt(s,x,y,size,color,bold,align,base){
+  ctx.fillStyle=color; ctx.font=(bold?"bold ":"")+size+"px system-ui,sans-serif";
+  ctx.textAlign=align||"center"; ctx.textBaseline=base||"middle"; ctx.fillText(s,x,y);
+}
+
+function draw(){
+  if(!run) return;
+  const M=run.meta.M, N=run.meta.N, st=run.steps[idx];
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.clientWidth, gap=24;
+  const cs=Math.floor((W-gap)/2/N), pw=cs*N, H=cs*M+26;
+  cv.width=W*dpr; cv.height=H*dpr; cv.style.height=H+"px";
+  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
+  const left=0, right=pw+gap, top=22, fs=Math.max(9,cs*.26);
+  ctx.save(); ctx.translate(0,top);
+  txt("Agent's belief map", pw/2, -11, 14, getComputedStyle(document.body).color, true);
+  txt("Ground truth", right+pw/2, -11, 14, getComputedStyle(document.body).color, true);
+
+  for (let r=0;r<M;r++) for (let c=0;c<N;c++){
+    const b=st.belief[r][c], risk=b[0]+b[1], x=left+c*cs, y=r*cs;
+    ctx.fillStyle=beliefColor(b); ctx.fillRect(x,y,cs,cs);
+    ctx.strokeStyle="#0006"; ctx.lineWidth=1; ctx.strokeRect(x+.5,y+.5,cs-1,cs-1);
+    if (b[3]>0.5){
+      txt("B "+Math.round(b[3]*100)+"%", x+cs/2, y+cs*.40, fs*.85, "#111", true);
+      txt("haz "+Math.round(risk*100)+"%", x+cs/2, y+cs*.62, fs*.72, "#111", false);
+    } else txt(Math.round(risk*100)+"%", x+cs/2, y+cs/2, fs*1.1, "#111", true);
+    const s=st.scan[r][c];
+    if (s){
+      ctx.strokeStyle="#f1c40f"; ctx.lineWidth=Math.max(2,cs*.05);
+      ctx.strokeRect(x+2,y+2,cs-4,cs-4);
+      txt("T:"+s[0], x+cs*.08, y+cs*.1, fs*.75, "#111", false, "left", "top");
+      txt("S:"+s[1], x+cs*.92, y+cs*.92, fs*.75, "#111", false, "right", "bottom");
+    }
+    // ground truth
+    const g=run.grid[r][c], gx=right+c*cs;
+    ctx.fillStyle=GT[g]; ctx.fillRect(gx,y,cs,cs);
+    ctx.strokeStyle="#0006"; ctx.strokeRect(gx+.5,y+.5,cs-1,cs-1);
+    txt(g, gx+cs/2, y+cs/2, fs*1.4, "#111", true);
+  }
+  // start / goal markers on the real map
+  const [sr,sc]=run.meta.start, [gr,gc]=run.meta.goal;
+  txt("start", right+sc*cs+cs/2, sr*cs+cs*.14, fs*.7, "#111", false);
+  txt("goal",  right+gc*cs+cs/2, gr*cs+cs*.14, fs*.7, "#111", false);
+  drawPath(right, cs, idx);
+  // agent on both panels
+  for (const ox of [left,right]){
+    const ax=ox+(st.c+.5)*cs, ay=(st.r+.5)*cs;
+    ctx.fillStyle="#f1c40f"; ctx.strokeStyle="#111"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(ax,ay,cs*.2,0,7); ctx.fill(); ctx.stroke();
+    txt("A", ax, ay, cs*.24, "#111", true);
+  }
+  ctx.restore();
+
+  const score = st.lives>0 ? ((st.time+st.turns)/st.lives).toFixed(2) : "-";
+  $("sLives").textContent = Math.round(st.lives*100)/100;
+  $("sTime").textContent = st.time; $("sTurns").textContent = st.turns;
+  $("sScore").textContent = score;
+  $("sAct").textContent = idx===0 ? "start" : st.action;
+  $("sStep").textContent = idx+" / "+(run.steps.length-1);
+  $("step").value = idx;
+}
+
+function stop(){ if(timer){clearInterval(timer);timer=null;} $("play").textContent="Play"; }
+function play(){
+  if(!run) return;
+  if(idx>=run.steps.length-1) idx=0;
+  $("play").textContent="Pause";
+  timer=setInterval(()=>{ if(idx>=run.steps.length-1){stop();return;} idx++; draw(); },
+                    1100 - $("speed").value*100);
+}
+function go(i){ if(!run) return; idx=Math.max(0,Math.min(run.steps.length-1,i)); draw(); }
+$("play").onclick=()=>timer?stop():play();
+$("next").onclick=()=>{stop();go(idx+1)}; $("prev").onclick=()=>{stop();go(idx-1)};
+$("first").onclick=()=>{stop();go(0)};    $("last").onclick=()=>{stop();go(1e9)};
+$("step").oninput=e=>{stop();go(+e.target.value)};
+$("speed").oninput=()=>{ if(timer){stop();play();} };
+addEventListener("keydown",e=>{
+  if(e.target.tagName==="SELECT") return;
+  if(e.key===" "){e.preventDefault(); timer?stop():play();}
+  else if(e.key==="ArrowRight"){stop();go(idx+1)} else if(e.key==="ArrowLeft"){stop();go(idx-1)}});
+addEventListener("resize",draw);
+boot();
+</script>
+</body>
+</html>

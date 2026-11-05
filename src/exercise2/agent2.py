@@ -29,7 +29,7 @@ def heuristic(r, c):
     manhattan = abs(goal_r - r) + abs(goal_c - c)
     return manhattan * (config2.WALK_TIME_COST + config2.TURN_COST)
 
-def search(current, belief_grid):
+def search(current, belief_grid, avoid=()):
     M, N=config2.M, config2.N
     start = current
 
@@ -52,7 +52,7 @@ def search(current, belief_grid):
             while current.parent and current.parent.parent:
                 current=current.parent
             return current
-        for next_state, next_risk in expand(current, belief_grid):
+        for next_state, next_risk in expand(current, belief_grid, avoid):
             priority = (
                 -next_state.lives,
                 next_state.cost()+next_risk
@@ -64,7 +64,7 @@ def search(current, belief_grid):
 
     return None
 
-def expand(curstate, belief_grid):
+def expand(curstate, belief_grid, avoid=()):
     
     result=[]
     for dr, dc in config2.ORTHOGONAL_MOVES:
@@ -83,7 +83,7 @@ def expand(curstate, belief_grid):
         lives = curstate.lives
         newlives=max(lives-expected_liveloss, 0.05)
 
-        if newlives > 0:
+        if newlives > 0 and (nr, nc) not in avoid:
             successors=State(
                     nr, nc,
                     newlives,
@@ -101,15 +101,15 @@ def expand(curstate, belief_grid):
             continue
         
         belf=belief_grid[nr2][nc2]
-        if belf["B"]>0.8:
-            continue
+        if belf["B"]>0.8 or belief_grid[curstate.row + dr][curstate.col + dc]["B"]>0.8:
+            continue                       # cannot land on, or jump over, a wall
         risk_penalty=belf["V"]+belf["W"]
         expected_liveloss=risk_penalty*config2.HAZARD_LIFE_COST
 
         lives = curstate.lives
         newlivesj=max(lives-expected_liveloss, 0.05)
 
-        if newlivesj > 0:
+        if newlivesj > 0 and (nr2, nc2) not in avoid:
             successors=State(
                     nr2, nc2,
                     newlivesj,
@@ -159,8 +159,19 @@ def runagent(grid, belief_grid, scan_infor):
     fullpath=[(curS.row, curS.col, None, curS.lives)]
     snaps=[(copy.deepcopy(belief_grid), copy.deepcopy(scan_infor))]
     scans=4
+    avoid = set()      # cells refused on the last life
+    visited = {config2.START_POS}   # cells the agent has stood on
     while (curS.row, curS.col) !=config2.GOAL_POS:
-        nextS=search(curS, belief_grid)
+        if curS.turns > config2.MAX_TURNS:      # safety net: never loop forever
+            print("Turn limit reached.")
+            return fullpath, snaps
+        forced = False
+        nextS = search(curS, belief_grid, avoid)
+        if avoid and (nextS is None or len(avoid) > config2.DEATH_MAX_AVOID
+                      or (nextS.row, nextS.col) in visited):   # a detour must not step back
+            avoid.clear()          # nothing safer exists (or too many detours): accept the risk
+            forced = True
+            nextS = search(curS, belief_grid)
         if nextS is None:
             print("No safe path found.")
             return fullpath, snaps
@@ -168,7 +179,39 @@ def runagent(grid, belief_grid, scan_infor):
 
         belief = belief_grid[r][c]
         risk = belief["V"] + belief["W"]
-        if 0.2< risk < 0.7 and scan_infor[r][c]["count"] < scans:
+        if config2.PROBE_ALTERNATIVES and risk >= config2.PROBE_RISK:
+            # the planned step is very likely a hazard: scan other cells that could be safer land
+            gr, gc = config2.GOAL_POS
+            here = abs(curS.row - gr) + abs(curS.col - gc)
+            alts = []
+            for s2, _ in expand(curS, belief_grid, ()):
+                a2, b2 = s2.row, s2.col
+                bf = belief_grid[a2][b2]
+                ar = bf["V"] + bf["W"]
+                if (a2, b2) == (r, c) or (a2, b2) in visited:
+                    continue
+                if scan_infor[a2][b2]["count"] >= config2.PROBE_MAX_SCANS or not (0.05 < ar < 0.95):
+                    continue
+                d = abs(a2 - gr) + abs(b2 - gc)
+                if d <= here:
+                    alts.append((d, ar, a2, b2))
+            if alts:
+                alts.sort()
+                _, _, a2, b2 = alts[0]
+                T = Tsim(grid, a2, b2)
+                S = Ssim(grid, a2, b2)
+                belief_grid[a2][b2] = updatebelf(belief_grid[a2][b2], T, S)
+                scan_infor[a2][b2]["count"] += 1
+                scan_infor[a2][b2]["T"] = T
+                scan_infor[a2][b2]["S"] = S
+                scan_infor[a2][b2]["scanned"] = True
+                curS = State(curS.row, curS.col, curS.lives, curS.time, curS.turns + config2.SCAN_TURN_COST, None, 'scan')
+                fullpath.append((curS.row, curS.col, 'scan', curS.lives))
+                snaps.append((copy.deepcopy(belief_grid), copy.deepcopy(scan_infor)))
+                continue
+        last_life = config2.DEATH_AWARE and curS.lives <= config2.HAZARD_LIFE_COST
+        lo, hi = config2.DEATH_SCAN_BAND if last_life else (0.2, 0.7)
+        if lo < risk < hi and scan_infor[r][c]["count"] < scans:
             T = Tsim(grid, r, c)
             S = Ssim(grid, r, c)
 
@@ -184,7 +227,19 @@ def runagent(grid, belief_grid, scan_infor):
         if scan_infor[r][c]["count"] >= scans and 0.2 < risk < 0.7:
             belief_grid[r][c] = {"L":0, "V":0, "W":0, "B":1}
             continue
+        if last_life and not forced and risk >= config2.DEATH_RISK_THRESHOLD:
+            avoid.add((r, c))      # one hazard would end the run: look for another route
+            continue
         true_cell = grid[r][c]
+        if config2.WALL_BLOCK and nextS.action == 'jump':
+            mr, mc = (curS.row + r) // 2, (curS.col + c) // 2
+            if grid[mr][mc] == "B":        # a jump cannot pass over a wall
+                collapse(mr, mc, "B", belief_grid)
+                curS = State(curS.row, curS.col, curS.lives, curS.time,
+                             curS.turns + config2.TURN_COST, None, 'bump')
+                fullpath.append((curS.row, curS.col, 'bump', curS.lives))
+                snaps.append((copy.deepcopy(belief_grid), copy.deepcopy(scan_infor)))
+                continue
         if config2.WALL_BLOCK and true_cell == "B":
             collapse(r, c, "B", belief_grid)
             curS = State(curS.row, curS.col, curS.lives, curS.time,
@@ -199,8 +254,12 @@ def runagent(grid, belief_grid, scan_infor):
 
         if new_lives <= 0:
             print("Agent died.")
+            collapse(r, c, true_cell, belief_grid)
+            fullpath.append((r, c, nextS.action, 0))
+            snaps.append((copy.deepcopy(belief_grid), copy.deepcopy(scan_infor)))
             return fullpath, snaps
         collapse(r, c, true_cell, belief_grid)
+        visited.add((r, c))
         step_time = config2.WALK_TIME_COST if nextS.action == 'walk' else config2.JUMP_TIME_COST
         curS = State(r, c, new_lives, curS.time + step_time, curS.turns + config2.TURN_COST)
         fullpath.append((r, c, nextS.action, curS.lives))

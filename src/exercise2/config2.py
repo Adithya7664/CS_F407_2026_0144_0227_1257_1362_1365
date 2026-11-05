@@ -33,6 +33,18 @@ CPT = {
 }
 WALL_BLOCK = True
 
+# ---------- DEATH-AWARE PLANNING (last life) ----------
+DEATH_AWARE = True               # on the last life, avoid steps that are likely to be fatal
+DEATH_RISK_THRESHOLD = 0.3       # last life: refuse a cell whose P(volcano or water) is at least this
+DEATH_SCAN_BAND = (0.05, 0.95)   # last life: scan whenever risk is inside this wider band
+DEATH_MAX_AVOID = 2              # last life: after refusing this many cells, stop detouring
+
+# ---------- PROBING ALTERNATIVES ----------
+PROBE_ALTERNATIVES = True        # before a likely-hazard step, scan other cells that might be safe land
+PROBE_RISK = 0.7                 # "likely hazard" = P(volcano or water) at least this
+PROBE_MAX_SCANS = 2              # at most this many probe scans per alternative cell
+MAX_TURNS = 400                  # safety net: stop the run if it ever exceeds this many turns
+
 # ---------- AGENT & SENSOR SETTINGS ----------
 INITIAL_LIVES = 4
 K_SCAN_LIMIT = 4      # Maximum sensor scans allowed per cell 
