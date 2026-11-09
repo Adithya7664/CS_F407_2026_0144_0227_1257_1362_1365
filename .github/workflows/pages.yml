@@ -27,8 +27,11 @@ jobs:
       - name: Generate replays (seeds 1-60)
         working-directory: src/exercise2
         run: python export_replay.py 1 60
-      - name: Copy replays into the site
-        run: cp -r src/exercise2/replays docs/replays
+      - name: Copy replays and Python sources into the site
+        run: |
+          cp -r src/exercise2/replays docs/replays
+          mkdir -p docs/py
+          cp src/exercise2/{config2,grid_gen2,agent2,export_replay,live}.py docs/py/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

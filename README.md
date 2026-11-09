@@ -94,10 +94,33 @@ python -m http.server 8000              # open http://localhost:8000
 
 The page has a seed picker, play/pause, step controls, a speed slider and keyboard shortcuts (space, left/right arrows). It shows the belief map next to the ground truth for every step.
 
+## Live mode
+
+The deployed page also has a **Run live in your browser** panel. It runs the real Python agent (`src/exercise2`) in the browser with [Pyodide](https://pyodide.org), inside a Web Worker so the page stays responsive. You can pick any seed, grid size (8 to 10 rows and columns), and switch probing and the last-life guard on or off, then play the run in the same viewer. The first run downloads the Python runtime (about 10 MB); later runs take a second or so.
+
+To try it locally, copy the agent sources next to the page and serve it:
+
+```bash
+mkdir docs/py
+cp src/exercise2/{config2,grid_gen2,agent2,export_replay,live}.py docs/py/   # PowerShell: Copy-Item src/exercise2/{config2,grid_gen2,agent2,export_replay,live}.py docs/py/
+cd docs && python -m http.server 8000
+```
+
+(The GitHub Actions workflow does this copy automatically on deploy.)
+
+## Tests
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+They check that both generators make connected paths, that neither agent crosses a wall, that the Bayesian update is a valid distribution, and that the live entry point honours its options. The same tests run in CI before every deploy.
+
 ## Project layout
 
 ```
 src/exercise1/    agent.py, grid_gen.py, visualizer.py, config.py, main.py
-src/exercise2/    agent2.py, grid_gen2.py, visualizer2.py, config2.py, main2.py, export_replay.py
-docs/             static replay viewer (index.html), replays/, img/
+src/exercise2/    agent2.py, grid_gen2.py, visualizer2.py, config2.py, main2.py, export_replay.py, live.py
+docs/             static viewer (index.html), live-worker.js, img/ (replays/ and py/ are generated)
+tests/            unit tests (stdlib unittest)
 ```

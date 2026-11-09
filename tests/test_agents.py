@@ -121,5 +121,23 @@ class TestExercise2Agent(unittest.TestCase):
         self.assertGreaterEqual(reached, int(0.8 * len(SEEDS)), f"only {reached}/{len(SEEDS)} runs reached the goal")
 
 
+class TestLiveEntryPoint(unittest.TestCase):
+    def test_run_live_returns_valid_replay_and_respects_options(self):
+        import json
+        import live
+        saved = (config2.M, config2.N, config2.GOAL_POS, config2.PROBE_ALTERNATIVES, config2.DEATH_AWARE)
+        try:
+            d = json.loads(live.run_live(5, rows=9, cols=8, probing=False, last_life=False))
+            self.assertEqual((d["meta"]["M"], d["meta"]["N"]), (9, 8))
+            self.assertEqual(d["meta"]["goal"], [8, 7])
+            self.assertEqual(len(d["grid"]), 9)
+            self.assertEqual(len(d["grid"][0]), 8)
+            self.assertIn(d["outcome"], ("goal", "died", "stopped"))
+            self.assertEqual(len(d["steps"][0]["belief"]), 9)
+            self.assertFalse(config2.PROBE_ALTERNATIVES)
+        finally:
+            config2.M, config2.N, config2.GOAL_POS, config2.PROBE_ALTERNATIVES, config2.DEATH_AWARE = saved
+
+
 if __name__ == "__main__":
     unittest.main()
