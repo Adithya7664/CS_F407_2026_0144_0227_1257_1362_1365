@@ -17,3 +17,4 @@ src/exercise2/replays/
 .DS_Store
 .ipynb_checkpoints/
 docs/replays/
+docs/py/
