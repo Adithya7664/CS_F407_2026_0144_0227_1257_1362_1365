@@ -57,7 +57,16 @@ The agent cannot see terrain. For each cell it keeps a belief `P(L), P(V), P(W),
 
 **Reading the belief map.** A cell labelled `B 64%` means "wall is the most likely type", not "certain wall". A quiet scan (T:0, S:0) looks the same for land and walls, so most cells labelled `B` are actually land. The `haz` figure under it is the real volcano-or-water risk.
 
-**Measured results.** Over 120 to 150 generated grids the agent reaches the goal in about 95% of runs, with about 2.5 lives left on average. Numbers vary a little with the seed range, and walls being impassable makes the task harder than it was in the first version.
+**Measured results.** Ablation over 300 seeded grids (default config, walls impassable, 4 lives):
+
+| Variant | Reaches goal | Deaths | Lives left (avg, on success) |
+|---|---|---|---|
+| Full agent | 91.7% | 25 | 2.56 |
+| Without last-life guard | 89.0% | 33 | 2.61 |
+| Without probing alternatives | 85.0% | 45 | 2.12 |
+| Without sensing (priors only) | 80.0% | 60 | 2.19 |
+
+Sensing contributes most (deaths fall from 60 to 25), then probing. The last-life guard adds about 3 points, a small effect at this sample size. Earlier runs over 120 to 150 grids gave about 95% for the full agent, so results shift by a few points with the seed range.
 
 ## Setup
 
